@@ -185,6 +185,14 @@
       "value": "用户"
     },
     {
+      "name": "system_ca_store_version",
+      "value": "系统 CA 证书库版本：%s"
+    },
+    {
+      "name": "system_sm_ca_store_version",
+      "value": "系统商密 CA 证书库版本：%s"
+    },
+    {
       "name": "CustomDialogExample_firText",
       "value": "证书详情"
     },

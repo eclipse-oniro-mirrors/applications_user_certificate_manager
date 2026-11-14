@@ -77,6 +77,11 @@ export enum CertManagerStore {
   CERT_MANAGER_APPLICATION_TRUSTED_STORE = 3,
 }
 
+export enum CertAlgorithm {
+  INTERNATIONAL = 1,
+  SM = 2,
+}
+
 const logger: Logger = new Logger('CertMangerModel');
 
 export class CertMangerModel {
@@ -312,11 +317,12 @@ export class CertMangerModel {
     }
   }
 
-  private async getSystemTrustedCertificateList(callback: Function): Promise<void> {
-    logger.info('getSystemTrustedCertificateList start');
+  public async getSystemTrustedCertificateListByAlg(certAlg: CertAlgorithm,
+    callback: Function): Promise<void> {
+    logger.info('getSystemTrustedCertificateListByAlg start, certAlg: ' + certAlg);
     try {
       let subjectNameCN: string = '';
-      let result = await CertManager.getSystemTrustedCertificateList();
+      let result = await CertManager.getSystemTrustedCertificateList(certAlg as CertManager.CertAlgorithm);
       let certList: CertAbstractVo[] = [];
       let regex: RegExp = new RegExp('(?<=CN=).*?(?=,)', 'g');
       if (result.certList !== undefined) {
@@ -329,17 +335,24 @@ export class CertMangerModel {
           certList.push(new CertAbstractVo(String(result.certList[i].uri), String(result.certList[i].certAlias),
             Boolean(result.certList[i].state), String(result.certList[i].subjectName), String(subjectNameCN)));
         }
-        logger.info('getSystemTrustedCertificateList end');
-        callback(CMModelErrorCode.CM_MODEL_ERROR_SUCCESS, certList);
+        logger.info('getSystemTrustedCertificateListByAlg end');
+        callback(CMModelErrorCode.CM_MODEL_ERROR_SUCCESS, certList, result.certStoreInfo);
       } else {
-        logger.error('getSystemTrustedCertificateList failed, undefined');
-        callback(CMModelErrorCode.CM_MODEL_ERROR_FAILED, undefined);
+        logger.error('getSystemTrustedCertificateListByAlg failed, undefined');
+        callback(CMModelErrorCode.CM_MODEL_ERROR_FAILED, [], undefined);
       }
     } catch (err) {
       let e: BusinessError = err as BusinessError;
-      logger.error('getSystemTrustedCertificateList err, message: ' + e.message + ', code: ' + e.code);
-      callback(CMModelErrorCode.CM_MODEL_ERROR_EXCEPTION, undefined);
+      logger.error('getSystemTrustedCertificateListByAlg err, message: ' + e.message + ', code: ' + e.code);
+      callback(CMModelErrorCode.CM_MODEL_ERROR_EXCEPTION, [], undefined);
     }
+  }
+
+  private async getSystemTrustedCertificateList(callback: Function): Promise<void> {
+    this.getSystemTrustedCertificateListByAlg(CertAlgorithm.INTERNATIONAL,
+      (errCode: CMModelErrorCode, certList: Array<CertAbstractVo>) => {
+      callback(errCode, certList);
+    });
   }
 
   private setSubjectName(result: CertManager.CMResult, subjectNameMap: Map<string, string>) {

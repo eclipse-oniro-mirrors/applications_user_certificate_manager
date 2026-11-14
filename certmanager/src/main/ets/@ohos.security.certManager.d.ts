@@ -426,6 +426,40 @@ declare namespace certificateManager {
         credentialDetailList?: Array<Credential>;
 
         uriList?: Array<string>;
+
+        /**
+         * Indicates the certificate store info of CMResult.
+         *
+         * @type { ?CertStoreInfo }
+         * @syscap SystemCapability.Security.CertificateManager
+         * @since 20
+         */
+        certStoreInfo?: CertStoreInfo;
+    }
+    /**
+     * Provides the certificate store info type.
+     *
+     * @typedef CertStoreInfo
+     * @syscap SystemCapability.Security.CertificateManager
+     * @since 20
+     */
+    export interface CertStoreInfo {
+        /**
+         * Indicates the version of the international algorithm CA certificate store.
+         *
+         * @type { string }
+         * @syscap SystemCapability.Security.CertificateManager
+         * @since 20
+         */
+        certStoreVersion: string;
+        /**
+         * Indicates the version of the SM (China crypto) algorithm CA certificate store.
+         *
+         * @type { string }
+         * @syscap SystemCapability.Security.CertificateManager
+         * @since 20
+         */
+        smCertStoreVersion: string;
     }
     /**
      * Enum for Key Purpose
@@ -1331,6 +1365,7 @@ declare namespace certificateManager {
     }
 
     function getSystemTrustedCertificateList() : Promise<CMResult>;
+    function getSystemTrustedCertificateList(certAlg: CertAlgorithm) : Promise<CMResult>;
 
     function getSystemTrustedCertificate(certUri: string) : Promise<CMResult>;
 

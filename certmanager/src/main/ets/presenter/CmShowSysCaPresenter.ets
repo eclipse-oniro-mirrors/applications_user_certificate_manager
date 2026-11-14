@@ -14,11 +14,11 @@
  */
 
 import certManagerModel from '../model/CertMangerModel';
-import { CMModelErrorCode, CMModelOptType } from '../model/CertMangerModel';
+import { CMModelErrorCode, CMModelOptType, CertAlgorithm } from '../model/CertMangerModel';
 import { CertAbstractVo } from '../model/CertManagerVo/CertAbstractVo';
 import { CertInfoVo } from '../model/CertManagerVo/CertInfoVo';
-import { CmCertDataSource } from './CmCertDataSource';
 import Logger from '../common/util/Logger';
+import CertManager from '@ohos.security.certManager';
 
 const logger: Logger = new Logger('CmShowSysCaPresenter');
 
@@ -27,7 +27,10 @@ export default class CmShowSysCaPresenter {
   public certList: CertAbstractVo[] = [];
   public certInfo: CertInfoVo = new CertInfoVo('', '', false, '', '', '', '', '', '',
     new Uint8Array(), new Map(), new Map(), new Map());
-  public certDataSource: CmCertDataSource = new CmCertDataSource();
+  public intlCertList: CertAbstractVo[] = [];
+  public smCertList: CertAbstractVo[] = [];
+  public certStoreVersion: string = '';
+  public smCertStoreVersion: string = '';
 
   public static getInstance(): CmShowSysCaPresenter {
     if (CmShowSysCaPresenter.sInstance == null) {
@@ -42,30 +45,58 @@ export default class CmShowSysCaPresenter {
 
   aboutToDisappear(): void {
     this.certList = [];
+    this.intlCertList = [];
+    this.smCertList = [];
+    this.certStoreVersion = '';
+    this.smCertStoreVersion = '';
     this.certInfo = new CertInfoVo('', '', false, '', '', '', '', '', '',
       new Uint8Array(), new Map(), new Map(), new Map());
   }
 
-  updateSystemTrustedCertificateList(): void {
-    certManagerModel.getCertOrCredList(CMModelOptType.CM_MODEL_OPT_SYSTEM_CA,
-      (errCode: CMModelErrorCode, certList: Array<CertAbstractVo>) => {
+  updateSystemTrustedCertificateList(onComplete?: () => void): void {
+    certManagerModel.getSystemTrustedCertificateListByAlg(CertAlgorithm.INTERNATIONAL,
+      (errCode: CMModelErrorCode, certList: CertAbstractVo[], certStoreInfo?: CertManager.CertStoreInfo) => {
       if (errCode === CMModelErrorCode.CM_MODEL_ERROR_SUCCESS) {
-        certList.sort((certAbs, certAbsOther): number => {
-          let certAlias = certAbs.certAlias;
-          let certAliasOther = certAbsOther.certAlias;
-          if (certAlias <= certAliasOther) {
-            return -1;
-          } else {
-            return 1;
-          }
-        });
-        this.certList = certList;
-        this.certDataSource.reloadData(this.certList);
+        this.intlCertList = this.sortCertList(certList);
+        this.certStoreVersion = certStoreInfo?.certStoreVersion ?? '';
       } else {
-        logger.error('updateSystemTrustedCertificateList fail,errCode is' + errCode);
-        this.certList = [];
+        logger.error('get intl system trusted ca list fail, errCode is ' + errCode);
+        this.intlCertList = [];
+        this.certStoreVersion = '';
+      }
+      this.getSmSystemTrustedCertificateList(onComplete);
+    });
+  }
+
+  private getSmSystemTrustedCertificateList(onComplete?: () => void): void {
+    certManagerModel.getSystemTrustedCertificateListByAlg(CertAlgorithm.SM,
+      (errCode: CMModelErrorCode, certList: CertAbstractVo[], certStoreInfo?: CertManager.CertStoreInfo) => {
+      if (errCode === CMModelErrorCode.CM_MODEL_ERROR_SUCCESS) {
+        this.smCertList = this.sortCertList(certList);
+        this.smCertStoreVersion = certStoreInfo?.smCertStoreVersion ?? '';
+      } else {
+        logger.error('get sm system trusted ca list fail, errCode is ' + errCode);
+        this.smCertList = [];
+        this.smCertStoreVersion = '';
+      }
+      if (onComplete !== undefined) {
+        onComplete();
       }
     });
+  }
+
+  private sortCertList(certList: CertAbstractVo[]): CertAbstractVo[] {
+    let sorted: CertAbstractVo[] = certList.slice();
+    sorted.sort((certAbs: CertAbstractVo, certAbsOther: CertAbstractVo): number => {
+      let certAlias: string = certAbs.certAlias;
+      let certAliasOther: string = certAbsOther.certAlias;
+      if (certAlias <= certAliasOther) {
+        return -1;
+      } else {
+        return 1;
+      }
+    });
+    return sorted;
   }
 
   getSystemTrustedCertificate(uri: string, callback: Function): void {
@@ -83,14 +114,17 @@ export default class CmShowSysCaPresenter {
     });
   }
 
-  setSystemCertificateStatus(uri: string, status: boolean): void {
+  setSystemCertificateStatus(uri: string, status: boolean, onComplete?: () => void): void {
     certManagerModel.setCertStatus(CMModelOptType.CM_MODEL_OPT_SYSTEM_CA, uri, status,
       (errCode: CMModelErrorCode) => {
       if (errCode === CMModelErrorCode.CM_MODEL_ERROR_SUCCESS) {
         logger.info('setSystemCertificateStatus success,errCode is' + errCode);
-        this.updateSystemTrustedCertificateList();
+        this.updateSystemTrustedCertificateList(onComplete);
       } else {
         logger.error('setSystemCertificateStatus fail,errCode is' + errCode);
+        if (onComplete !== undefined) {
+          onComplete();
+        }
       }
     });
   }
