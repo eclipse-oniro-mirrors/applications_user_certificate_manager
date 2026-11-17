@@ -645,6 +645,10 @@ export struct TrustedEvidence {
   @State private sysScrollerHeight: number = 0;
   @State private userScrollerHeight: number = 0;
   @State statusBarHeight: number = 0
+  @State intlCertList: CertAbstractVo[] = [];
+  @State smCertList: CertAbstractVo[] = [];
+  @State certStoreVersion: string = '';
+  @State smCertStoreVersion: string = '';
   @Builder
   TabBuilder(index: number) {
     Column() {
@@ -668,9 +672,26 @@ export struct TrustedEvidence {
   }
 
   aboutToAppear() {
-    this.mShowSysCaPresenter.updateSystemTrustedCertificateList();
+    this.refreshSystemCaList();
     this.mShowUserCaPresenter.updateUserTrustedCertificateList();
     this.statusBarHeight = AppStorage.get('STATUS_BAR_HEIGHT') as number
+  }
+
+  aboutToDisappear() {
+    this.mShowSysCaPresenter.aboutToDisappear();
+    this.intlCertList = [];
+    this.smCertList = [];
+    this.certStoreVersion = '';
+    this.smCertStoreVersion = '';
+  }
+
+  private refreshSystemCaList(): void {
+    this.mShowSysCaPresenter.updateSystemTrustedCertificateList(() => {
+      this.intlCertList = this.mShowSysCaPresenter.intlCertList;
+      this.smCertList = this.mShowSysCaPresenter.smCertList;
+      this.certStoreVersion = this.mShowSysCaPresenter.certStoreVersion;
+      this.smCertStoreVersion = this.mShowSysCaPresenter.smCertStoreVersion;
+    });
   }
 
   onPageShow() {
@@ -714,39 +735,75 @@ export struct TrustedEvidence {
                   TabContent() {
                     Stack({ alignContent: Alignment.TopEnd }) {
                       Scroll(this.sysCaScroller) {
-                        List() {
-                          LazyForEach(this.mShowSysCaPresenter.certDataSource, (item: CertAbstractVo) => {
-                            ListItem() {
-                              ComponentSystem({
-                                certAlias: item.certAlias,
-                                subjectName: item.subjectNameCN,
-                                uri: item.uri,
-                                setStatus: $mShowSysCaPresenter,
-                                onItemClicked: this.isStartBySheet ? () => {
-                                  this.selected?.(NavEntryKey.CA_SYSTEM_DETAIL_ENTRY);
-                                } : undefined
-                              })
+                        Column() {
+                          if (this.intlCertList.length > 0) {
+                            if (this.certStoreVersion.length > 0) {
+                              Text($r('app.string.system_ca_store_version', this.certStoreVersion))
+                                .fontSize($r('sys.float.ohos_id_text_size_body3'))
+                                .fontColor($r('sys.color.font_secondary'))
+                                .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+                                .textAlign(TextAlign.Start)
+                                .width(WidthPercent.WH_100_100)
                             }
-                          }, (item: CertAbstractVo) => item.uri)
+                            Column() {
+                              ForEach(this.intlCertList, (item: CertAbstractVo, index: number) => {
+                                Column() {
+                                  ComponentSystem({
+                                    certAlias: item.certAlias,
+                                    subjectName: item.subjectNameCN,
+                                    uri: item.uri,
+                                    setStatus: $mShowSysCaPresenter,
+                                    onItemClicked: this.isStartBySheet ? () => {
+                                      this.selected?.(NavEntryKey.CA_SYSTEM_DETAIL_ENTRY);
+                                    } : undefined
+                                  })
+                                  if (index < this.intlCertList.length - 1) {
+                                    Divider().strokeWidth('1px')
+                                      .color($r('sys.color.ohos_id_color_list_separator'))
+                                      .margin({ left: 12, right: 12 })
+                                  }
+                                }
+                              }, (item: CertAbstractVo) => item.uri)
+                            }
+                            .borderRadius($r('sys.float.corner_radius_level4'))
+                            .backgroundColor($r('sys.color.comp_background_list_card'))
+                          }
+                          if (this.smCertList.length > 0) {
+                            Blank().height(8)
+                            if (this.smCertStoreVersion.length > 0) {
+                              Text($r('app.string.system_sm_ca_store_version', this.smCertStoreVersion))
+                                .fontSize($r('sys.float.ohos_id_text_size_body3'))
+                                .fontColor($r('sys.color.font_secondary'))
+                                .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+                                .textAlign(TextAlign.Start)
+                                .width(WidthPercent.WH_100_100)
+                            }
+                            Column() {
+                              ForEach(this.smCertList, (item: CertAbstractVo, index: number) => {
+                                Column() {
+                                  ComponentSystem({
+                                    certAlias: item.certAlias,
+                                    subjectName: item.subjectNameCN,
+                                    uri: item.uri,
+                                    setStatus: $mShowSysCaPresenter,
+                                    onItemClicked: this.isStartBySheet ? () => {
+                                      this.selected?.(NavEntryKey.CA_SYSTEM_DETAIL_ENTRY);
+                                    } : undefined
+                                  })
+                                  if (index < this.smCertList.length - 1) {
+                                    Divider().strokeWidth('1px')
+                                      .color($r('sys.color.ohos_id_color_list_separator'))
+                                      .margin({ left: 12, right: 12 })
+                                  }
+                                }
+                              }, (item: CertAbstractVo) => item.uri)
+                            }
+                            .borderRadius($r('sys.float.corner_radius_level4'))
+                            .backgroundColor($r('sys.color.comp_background_list_card'))
+                          }
                         }
-                        .cachedCount(10)
-                        .borderRadius($r('sys.float.padding_level10'))
-                        .backgroundColor($r('sys.color.ohos_id_color_card_bg'))
-                        .scrollBar(BarState.Off)
-                        .padding({
-                          right: $r('app.float.wh_value_4'),
-                          left: $r('app.float.wh_value_4'),
-                          top: $r('app.float.wh_value_4'),
-                          bottom: $r('app.float.wh_value_4')
-                        })
-                        .divider({
-                          strokeWidth: $r('app.float.sys_list_divider_strokeWidth_value'),
-                          color: $r('sys.color.ohos_id_color_list_separator'),
-                          startMargin: $r('app.float.wh_value_8'),
-                          endMargin: $r('app.float.wh_value_8')
-                        })
-                        .visibility(this.mShowSysCaPresenter.certList.length > 0
-                          ? Visibility.Visible : Visibility.None)
+                        .width(WidthPercent.WH_100_100)
+                        .alignItems(HorizontalAlign.Start)
                       }
                       .width(WidthPercent.WH_100_100)
                       .height(this.isStartBySheet ? WidthPercent.WH_AUTO : WidthPercent.WH_100_100)
